@@ -63,11 +63,15 @@ st.title('Interactive Cancer Classifier')
 st.markdown("""
 Welcome to our cancer histopathology image classifier demo! 
 
+""")
 st.image(
     "https://d2rdhxfof4qmbb.cloudfront.net/wp-content/uploads/20180806110020/iStock-938558804.jpg",
-    caption="Our lead pathologist reviewing your samples 🐾🔬",
+    caption="your friendly pugthologist assistant",
     use_column_width=True
 )
+
+
+st.markdown("""
 
 
 
