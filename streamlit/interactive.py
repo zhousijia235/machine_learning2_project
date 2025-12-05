@@ -4,11 +4,9 @@ import pandas as pd
 import numpy as np
 from keras.models import load_model
 import os
+from pathlib import Path
 
 # Load the models and create class definitions
-
-
-from pathlib import Path
 
 BASE_DIR = Path(__file__).parent
 IMAGE_DIR = BASE_DIR / "sample_images"
@@ -73,13 +71,23 @@ if uploaded_image is not None:
         st.error(f"Error reading file: {e}")
 
 # providing test images as well, don't expect people to have random histopathology images
-images_from_folder = [f for f in os.listdir(IMAGE_DIR) if f.endswith(('.png', '.jpg', '.jpeg'))]
+if IMAGE_DIR.exists():
+    images_from_folder = [
+        f.name for f in IMAGE_DIR.iterdir()
+        if f.suffix.lower() in ('.png', '.jpg', '.jpeg')
+    ]
+else:
+    st.warning("Sample_images folder not found on the server.")
+    images_from_folder = []
+
 selected_image_file = st.selectbox('Choose a sample tumor image:', images_from_folder)
-# Load the selected image
+
 if selected_image_file:
-    image_path = os.path.join(IMAGE_DIR, selected_image_file)
-    select_image = cv2.imread(image_path)
+    image_path = IMAGE_DIR / selected_image_file
+    select_image = cv2.imread(str(image_path))
     st.image(select_image, caption=selected_image_file, width=256)
+else:
+    select_image = None
 
 # Predict if sample image used
 if st.button("Run Prediction"):
