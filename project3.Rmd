@@ -1,0 +1,426 @@
+---
+title: "Bayesian Modeling Project"
+output: html_document
+date: "2025-12-04"
+---
+
+
+Data Processing 
+
+```{r}
+
+
+#read clinical file
+
+clinical_data <- read.delim(
+  "TCGA.LUAD.sampleMap_LUAD_clinicalMatrix",
+  sep = "\t",
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)
+
+# rename to sample id
+colnames(clinical_data)[1] <- "Sample_ID"
+
+
+# keep only sample ID and purity
+clinical_purity_data <- clinical_data[, c("Sample_ID", "ABSOLUTE_Purity")]
+
+# remove null, convert purity to numeric 
+clinical_purity_data$ABSOLUTE_Purity[clinical_purity_data$ABSOLUTE_Purity == "null"] <- NA
+
+clinical_purity_data$ABSOLUTE_Purity <- as.numeric(clinical_purity_data$ABSOLUTE_Purity)
+
+# drop samples with missing purity
+clinical_purity_data <- clinical_purity_data[!is.na(clinical_purity_data$ABSOLUTE_Purity),]
+
+
+# read RNA-seq expression data
+rna_data <- read.delim(
+  gzfile("TCGA.LUAD.sampleMap_HiSeqV2.gz"),
+  sep = "\t",
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)
+
+# rename to gene
+colnames(rna_data)[1] <- "Gene"
+
+```
+
+```{r}
+
+#select biologically relevant genes
+
+gene_list <- c(
+  # immune cytotoxicity
+  "CD8A", "GZMB", "PRF1", "NKG7", "IFNG",
+  # t cell checkpoints
+  "PDCD1", "CTLA4", "LAG3", "TIGIT", "HAVCR2",
+  # proliferation
+  "MKI67", "PCNA", "CCNB1", "TOP2A", "BIRC5",
+  # oncogenic 
+  "EGFR", "KRAS", "ALK", "ERBB2", "MET",
+  # stromal
+  "COL1A1", "COL3A1", "FN1", "ACTA2", "TGFB1"
+)
+
+# subset 
+rna_selected <- rna_data[rna_data$Gene %in% gene_list,]
+
+
+# reshape  samples × genes
+
+# remove the gene column, keep numeric 
+rna_matrix <- rna_selected[, -1]
+
+# transpose
+rna_t <- as.data.frame(
+  t(rna_matrix),
+  stringsAsFactors = FALSE
+)
+
+# rename columns to gene symbols
+colnames(rna_t) <- rna_selected$Gene
+
+# add sample ID column from rownames
+# move id to first column then all genes
+rna_t$Sample_ID <- rownames(rna_t)
+kept_genes <- intersect(gene_list, colnames(rna_t))
+
+rna_t <- rna_t[
+  , c("Sample_ID", kept_genes)
+]
+
+
+for (gene in kept_genes) {
+  rna_t[[gene]] <- as.numeric(
+    rna_t[[gene]]
+  )
+}
+
+#merge purity and gene expression
+luad_genes_dataset <- merge(
+  clinical_purity_data,
+  rna_t,
+  by = "Sample_ID"
+)
+
+
+luad_genes_dataset$Purity <- luad_genes_dataset$ABSOLUTE_Purity
+
+# keep sample ID, purity, and selected genes
+luad_genes_dataset <- luad_genes_dataset[
+  , c("Sample_ID", "Purity", kept_genes)
+]
+
+#save
+
+write.csv(luad_genes_dataset,
+  file = "luad_genes_dataset.csv",
+  row.names = FALSE)
+
+
+print(dim(luad_genes_dataset))
+head(luad_genes_dataset)
+
+```
+
+
+```{r}
+luad <- read.csv("luad_genes_dataset.csv", stringsAsFactors=FALSE)
+luad$Purity <- as.numeric(luad$Purity)   
+
+gene_list <- setdiff(colnames(luad), c("Sample_ID", "Purity"))
+
+length(gene_list)
+gene_list
+
+```
+```{r}
+# train / test split 80/20
+
+n_total <- nrow(luad)
+train_idx <- sample(1:n_total, size = floor(0.8 * n_total))
+
+luad_train <- luad[train_idx, ]
+luad_test  <- luad[-train_idx, ]
+
+#matrix
+y_train <- luad_train$Purity
+y_test  <- luad_test$Purity
+
+gene_matrix_train <- as.matrix(luad_train[, gene_list])
+gene_matrix_test  <- as.matrix(luad_test[,  gene_list])
+
+#checking 
+for (j in seq_along(gene_list)) {
+  gene_matrix_train[, j] <- as.numeric(gene_matrix_train[, j])
+  gene_matrix_test[,  j] <- as.numeric(gene_matrix_test[,  j])
+}
+
+```
+
+
+```{r}
+#scale using train stats
+gene_scaled_train <- scale(gene_matrix_train)
+
+train_center <- attr(gene_scaled_train, "scaled:center")
+train_scale  <- attr(gene_scaled_train, "scaled:scale")
+
+# apply scaling to test
+gene_scaled_test <- sweep(gene_matrix_test, 2, train_center, FUN = "-")
+gene_scaled_test <- sweep(gene_scaled_test, 2, train_scale,  FUN = "/")
+
+#x train/test
+X_train <- cbind(Intercept = 1, gene_scaled_train)
+X_test  <- cbind(Intercept = 1, gene_scaled_test)
+
+n <- nrow(X_train)
+p <- ncol(X_train)
+
+
+# OLS sigma^2 for nosie 
+
+beta_ols_train <- solve(t(X_train) %*% X_train, t(X_train) %*% y_train)
+
+residuals_train <- y_train - X_train %*% beta_ols_train
+sigma2_hat <- as.numeric(t(residuals_train) %*% residuals_train / (n - p))
+
+sigma2_hat
+```
+
+
+Bayesian Linear Reg
+
+```{r}
+
+#y∣w,σ^2∼N(Xw,σ^2 In)
+
+#set prior mean and prior covariance for the coefficients
+
+#normal prior w∼N(w0,Σ0)
+
+#prior mean as 0s
+prior_w <- matrix(rep(0, p), ncol = 1) 
+#high variance , uncertain
+prior_Sigma <- diag(p) * 100                  
+
+# prior covariance inverse
+prior_Sigma_inv <- solve(prior_Sigma)
+
+#likelihood
+#Σy=σ^2In
+
+# covariance matrix- sigma^2 * I
+Sigma_y <- diag(n) * sigma2_hat
+# calc inverse 
+Sigma_y_inv <- solve(Sigma_y)
+
+
+# posterior covariance
+
+#Σpost=(X⊤Σy^−1 X+ Σ0^−1)^−1
+#(x^t Sigma_y_inv x + prior_Sigma_inv)^(-1)
+post_Sigma <- solve(t(X_train) %*% Sigma_y_inv %*% X_train + prior_Sigma_inv)
+
+
+# posterior mean
+
+#Σpost(X⊤Σy^−1y+Σ0^−1w0)
+# post_Sigma * (x^t Sigma_y_inv y + prior_Sigma_inv * prior_w)
+post_w <- post_Sigma %*% (t(X_train) %*% Sigma_y_inv %*% y_train + prior_Sigma_inv %*% prior_w)
+
+# posterior sd
+post_sd <- sqrt(diag(post_Sigma))
+
+# 95% intervals 
+ci_lower <- post_w - 1.96 * post_sd
+ci_upper <- post_w + 1.96 * post_sd
+
+bayes_genes <- data.frame(
+  coefficient = colnames(X_train),
+  post_mean = as.numeric(post_w),
+  post_sd   = as.numeric(post_sd),
+  ci_lower  = as.numeric(ci_lower),
+  ci_upper  = as.numeric(ci_upper)
+)
+
+head(bayes_genes)
+
+
+```
+Stats
+
+```{r}
+
+
+# predictions
+y_hat_train <- X_train %*% posterior_mean
+y_hat_test  <- X_test  %*% posterior_mean
+
+# RMSE
+rmse_train <- sqrt(mean((y_train - y_hat_train)^2))
+rmse_test  <- sqrt(mean((y_test  - y_hat_test)^2))
+
+# r sqr
+r2_train <- cor(y_train, y_hat_train)^2
+r2_test  <- cor(y_test,  y_hat_test)^2
+
+rmse_train
+rmse_test
+r2_train
+r2_test
+
+```
+Results Plots 
+
+```{r}
+
+library(ggplot2)
+
+# drop intercept 
+coef_df <- subset(bayes_genes, coefficient != "Intercept")
+
+# order genes by posterior mean 
+coef_df$coefficient <- factor(
+  coef_df$coefficient,
+  levels = coef_df$coefficient[order(coef_df$post_mean)]
+)
+
+
+ggplot(coef_df, aes(x = coefficient, y = post_mean)) +
+  # posterior mean
+  geom_point(size = 2) +
+  # 95% 
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2) +
+  # dashed line at 0 for no effect
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  # flip axes
+  coord_flip() +
+  labs(
+    title = "posterior effects of genes on tumor purity",
+    x = "genes",
+    y = "posterior mean effect on purity score"
+  ) +
+  theme_minimal()
+
+```
+
+
+```{r}
+
+# predictions and actual resutls 
+pred_df <- data.frame(
+  predicted = as.numeric(y_hat_test),
+  actual    = as.numeric(y_test)
+)
+
+ggplot(pred_df, aes(x = predicted, y = actual)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed", color = "red") +
+  labs(
+    title = "Predicted vs Actual Tumor Purity (Posterior Mean)",
+    x = "Predicted Purity",
+    y = "Actual Purity"
+  ) +
+  theme_minimal()
+
+```
+```{r}
+mae_test <- mean(abs(y_test - y_hat_test))
+mae_test
+
+cor_test <- cor(y_test, y_hat_test)
+cor_test
+
+
+```
+Coverage test
+
+```{r}
+
+# pred mean
+y_hat_test <- as.numeric(X_test %*% post_w)   
+
+# pred variance 
+
+n_test <- nrow(X_test)
+pred_var <- numeric(n_test)
+
+#loop to calc pred variance
+
+for(i in 1:n_test){
+  x_i <- matrix(X_test[i, ], ncol = 1)     
+  pred_var[i] <- t(x_i) %*% post_Sigma %*% x_i + sigma2_hat
+}
+
+#convert pred variance to sd
+pred_sd   <- sqrt(pred_var)
+
+#95%
+pred_low  <- y_hat_test - 1.96 * pred_sd
+pred_high <- y_hat_test + 1.96 * pred_sd
+
+#coverage test
+coverage <- mean(y_test >= pred_low & y_test <= pred_high)
+coverage
+
+
+
+pred_df <- data.frame(
+  predicted = y_hat_test,
+  actual    = as.numeric(y_test),
+  low       = pred_low,
+  high      = pred_high
+)
+
+ggplot(pred_df, aes(x = predicted, y = actual)) +
+  # vertical 95% predictive intervals
+  geom_errorbar(aes(ymin = low, ymax = high), width = 0.005, alpha = 0.4) +
+  geom_point(alpha = 0.6) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +
+  labs(
+    title = "Predicted vs Actual Tumor Purity with 95% CI",
+    x = "Predicted Purity",
+    y = "Actual Purity"
+  ) +
+  theme_minimal()
+
+
+
+```
+
+
+
+```{r}
+coverage
+
+```
+
+
+Extra heatmap 
+```{r}
+
+#gene correlation
+
+library(corrplot)
+
+cor_mat <- cor(luad[, c("Purity", gene_list)], use = "pairwise.complete.obs")
+
+corrplot(cor_mat,
+         method = "color",
+         type = "upper",
+         tl.cex = 0.6,
+        )
+
+```
+
+
+```{r}
+
+
+
+```
+
