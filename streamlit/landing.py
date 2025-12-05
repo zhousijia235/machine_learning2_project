@@ -4,6 +4,12 @@ st.set_page_config(page_title="ML2 Final Project", layout="wide")
 
 st.title("Bayesian Gene Modeling and CNN-Based Cancer Classification")
 
+st.image(
+    "https://img.freepik.com/free-photo/cute-little-dog-impersonating-business-person_23-2148985938.jpg?semt=ais_hybrid&w=740&q=80",
+    caption="Your friendly cancer-detecting assistant 🐶",
+    use_column_width=True
+)
+
 
 st.header("Project overview")
 st.markdown("""
