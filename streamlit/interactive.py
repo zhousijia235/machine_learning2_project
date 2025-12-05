@@ -4,24 +4,9 @@ import pandas as pd
 import numpy as np
 from keras.models import load_model
 import os
-from pathlib import Path
 
 # Load the models and create class definitions
-BASE_DIR = Path(__file__).resolve.parent()
-IMAGE_DIR = BASE_DIR / 'sample_images'
-
-# get the images from the folder
-# providing test images, don't expect people to have random histopathology images
-if IMAGE_DIR.is_dir():
-    images_from_folder = [
-        f for f in os.listdir(IMAGE_DIR)
-        if f.lower().endswith('.png', '.jpg', '.jpeg')
-    ]
-else:
-    images_from_folder = []
-    
-selected_image_file = st.selectbox('Choose a sample tumor image:', images_from_folder)
-
+IMAGE_DIR = 'sample_images'
 binary_model = load_model('models/binary_cnn.keras')
 cat_model = load_model('models/categorical_cnn.keras')
 cat_classes = ['colon adenocarcinoma (cancerous)', 
@@ -79,6 +64,9 @@ if uploaded_image is not None:
     except Exception as e:
         st.error(f"Error reading file: {e}")
 
+# providing test images as well, don't expect people to have random histopathology images
+images_from_folder = [f for f in os.listdir(IMAGE_DIR) if f.endswith(('.png', '.jpg', '.jpeg'))]
+selected_image_file = st.selectbox('Choose a sample tumor image:', images_from_folder)
 # Load the selected image
 if selected_image_file:
     image_path = os.path.join(IMAGE_DIR, selected_image_file)
