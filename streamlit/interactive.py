@@ -65,9 +65,10 @@ Welcome to our cancer histopathology image classifier demo!
 
 st.image(
     "https://d2rdhxfof4qmbb.cloudfront.net/wp-content/uploads/20180806110020/iStock-938558804.jpg",
-    caption="your friendly pugthologist assistant ",
+    caption="Our lead pathologist reviewing your samples 🐾🔬",
     use_column_width=True
 )
+
 
 
 This page lets you try a convolutional neural network (CNN) that reaches about 99% accuracy
