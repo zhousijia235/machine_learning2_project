@@ -63,6 +63,13 @@ st.title('Interactive Cancer Classifier')
 st.markdown("""
 Welcome to our cancer histopathology image classifier demo! 
 
+st.image(
+    "https://img.freepik.com/free-photo/cute-little-dog-impersonating-business-person_23-2148985938.jpg?semt=ais_hybrid&w=740&q=80",
+    caption="Your friendly cancer-detecting assistant",
+    use_column_width=True
+)
+
+
 This page lets you try a convolutional neural network (CNN) that reaches about 99% accuracy
 at telling cancer histology images from benign ones. 
 But don't take our word, try it your self! 
