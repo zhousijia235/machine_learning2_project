@@ -65,7 +65,7 @@ Welcome to our cancer histopathology image classifier demo!
 
 """)
 st.image(
-    "https://d2rdhxfof4qmbb.cloudfront.net/wp-content/uploads/20180806110020/iStock-938558804.jpg",
+    "https://cdn9.dissolve.com/p/D2115_238_053/D2115_238_053_1200.jpg",
     caption="your friendly pugthologist assistant",
     use_column_width=True
 )
