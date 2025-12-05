@@ -3,4 +3,3 @@ numpy
 pandas
 tensorflow
 streamlit
-sample_images
