@@ -7,8 +7,8 @@ import os
 
 # Load the models and create class definitions
 IMAGE_DIR = 'sample_images'
-binary_model = load_model('../models/binary_cnn.keras')
-cat_model = load_model('../models/categorical_cnn.keras')
+binary_model = load_model('models/binary_cnn.keras')
+cat_model = load_model('models/categorical_cnn.keras')
 cat_classes = ['colon adenocarcinoma (cancerous)', 
                        'colon benign', 
                        'lung adenocarcinoma (cancerous)', 
