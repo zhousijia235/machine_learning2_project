@@ -57,9 +57,31 @@ def predict(image, isUpload: bool):
     print(pred)
     st.write("The categorical model predicts that this image is ", cat_classes[pred])
 
-# The beginning of the page starts here
+# page content
 st.title('Interactive Cancer Classifier')
 
+st.markdown("""
+Welcome to our cancer histopathology image classifier demo! 
+
+This page lets you try a convolutional neural network (CNN) that reaches about 99% accuracy
+at telling cancer histology images from benign ones. 
+But don't take our word, try it your self! 
+
+**How to use it**
+
+- Upload a lung or colon histopathology tile, or pick one of the sample images below.  
+- The binary model will first decide whether the image looks **cancerous or benign**.  
+- If the tissue is lung or colon, the categorical model will also predict the specific type  
+  (for example lung adenocarcinoma, lung squamous, or colon adenocarcinoma).
+""")
+
+icon_image = IMAGE_DIR / "lungn38.jpeg"
+if icon_image.exists():
+    st.image(str(icon_image), width=120, caption="example histopathology tile")
+
+
+
+#upload
 uploaded_image = st.file_uploader('Choose a file', type=['png', 'jpeg', 'jpg'])
 
 # check for when the file is uploaded
