@@ -64,8 +64,8 @@ st.markdown("""
 Welcome to our cancer histopathology image classifier demo! 
 
 st.image(
-    "https://img.freepik.com/free-photo/cute-little-dog-impersonating-business-person_23-2148985938.jpg?semt=ais_hybrid&w=740&q=80",
-    caption="Your friendly cancer-detecting assistant",
+    "https://d2rdhxfof4qmbb.cloudfront.net/wp-content/uploads/20180806110020/iStock-938558804.jpg",
+    caption="your friendly pugthologist assistant ",
     use_column_width=True
 )
 
