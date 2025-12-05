@@ -6,9 +6,17 @@ from keras.models import load_model
 import os
 
 # Load the models and create class definitions
-IMAGE_DIR = 'sample_images'
-binary_model = load_model('models/binary_cnn.keras')
-cat_model = load_model('models/categorical_cnn.keras')
+
+
+from pathlib import Path
+
+BASE_DIR = Path(__file__).parent
+IMAGE_DIR = BASE_DIR / "sample_images"
+BINARY_MODEL_PATH = BASE_DIR / "models" / "binary_cnn.keras"
+CAT_MODEL_PATH = BASE_DIR / "models" / "categorical_cnn.keras"
+
+binary_model = load_model(str(BINARY_MODEL_PATH))
+cat_model = load_model(str(CAT_MODEL_PATH))
 cat_classes = ['colon adenocarcinoma (cancerous)', 
                        'colon benign', 
                        'lung adenocarcinoma (cancerous)', 
