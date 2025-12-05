@@ -3,7 +3,6 @@ import cv2
 import pandas as pd
 import numpy as np
 from keras.models import load_model
-from PIL import Image
 import os
 
 # Load the models and create class definitions
